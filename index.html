@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Pomodoro</title>
+  <script src="./bower_components/jquery/dist/jquery.min.js"></script>
+  <script src="./bower_components/firebase/firebase.js"></script>
+  <link href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css" rel="stylesheet">
+  <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js"></script>
+  <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+  <script src="./application.js"></script>
+  <link href="./application.css" rel="stylesheet">
+</head>
+<body>
+
+  <nav class="navbar navbar-default">
+    <div class="container-fluid">
+      <div class="navbar-header">
+        <a class="navbar-brand" href="#">
+          <i class="fa fa-circle-o-notch"></i>
+          Pomodoro
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="pomodoro-container">
+    <div class="panel panel-default">
+      <div class="panel-body">
+        <!-- Basic panel example -->
+
+        <div class="input-group">
+          <span class="input-group-addon"><i class="fa fa-chevron-right"></i></span>
+          <input id="task-title" type="text" class="form-control" placeholder="Enter a title for the activity">
+          <span class="input-group-btn">
+            <a id="startstop" class="btn btn-success">Start</a>
+          </span>
+        </div>
+
+      </div>
+    </div>
+
+    <ul id="tasks" class="list-group">
+    </ul>
+  </div>
+
+
+
+
+</body>
+</html>

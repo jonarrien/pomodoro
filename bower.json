@@ -1,0 +1,25 @@
+{
+  "name": "pomodoro",
+  "version": "0.0.1",
+  "homepage": "https://github.com/jonarrien/pomodoro",
+  "authors": [
+    "Jon Arrien <jonarrien@gmail.com>"
+  ],
+  "description": "Simple pomodoro webapp",
+  "moduleType": [
+    "globals"
+  ],
+  "license": "MIT",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "firebase": "~2.2.1",
+    "jquery": "~2.1.3"
+  }
+}
