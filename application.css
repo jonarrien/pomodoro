@@ -1,7 +1,17 @@
 body {
   background: #ececec; }
 
-.pomodoro-container {
+.pomodoro-app {
   padding: 0 10px; }
-  .pomodoro-container .panel-body {
+  .pomodoro-app .panel-heading {
+    background: #598800; }
+    .pomodoro-app .panel-heading h1 {
+      color: white;
+      font-size: 96px;
+      font-weight: 200;
+      text-align: right; }
+  .pomodoro-app .panel-body.new-task {
     padding: 5px; }
+
+.covert {
+  display: none; }

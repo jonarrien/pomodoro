@@ -3,38 +3,77 @@
   var Pomodoro, Task;
 
   Pomodoro = (function() {
+    Pomodoro.prototype.current_task = null;
+
     function Pomodoro() {
       console.log(':::::::::::::::::::::::::::::::::::::');
       console.log(':: Starting pomodoro app');
       console.log(':::::::::::::::::::::::::::::::::::::');
       this.fbase = new Firebase("https://brilliant-heat-2062.firebaseio.com/");
       this.tasks_index = this.fbase.child('tasks');
-      this.enableEvents();
+      this.enableFirebaseEvents();
     }
 
-    Pomodoro.prototype.startTask = function(task) {
-      console.log(':: Task started');
-      task.start_time = Date.now();
-      return this.tasks_index.push({
-        id: task.id,
-        title: task.title,
-        date: task.start_time
-      });
+    Pomodoro.prototype.startStop = function() {
+      if (this.current_task) {
+        this.stopCurrentTask();
+        return this.current_task = null;
+      } else {
+        if ($('#task-title').val() !== '') {
+          this.current_task = new Task({
+            title: $('#task-title').val()
+          });
+          return this.startTask(this.current_task);
+        } else {
+          return alert('Please, add a title for this task');
+        }
+      }
     };
 
-    Pomodoro.prototype.enableEvents = function() {
+    Pomodoro.prototype.startTask = function(current_task) {
+      this.current_task = current_task;
+      this.current_task.start_time = Date.now();
+      this.tasks_index.push({
+        id: this.current_task.id,
+        title: this.current_task.title,
+        date: this.current_task.start_time
+      });
+      setInterval(this.updateTimer, 1000);
+      $('.pomodoro-app .panel-heading').show();
+      $('.pomodoro-app .panel-body input').attr('disabled', true);
+      return $('#startstop').addClass('btn-danger').removeClass('btn-success').html('Stop');
+    };
+
+    Pomodoro.prototype.stopCurrentTask = function() {
+      $('.pomodoro-app .panel-heading').hide();
+      $('.pomodoro-app .panel-body input').attr('disabled', false).val('');
+      return $('#startstop').removeClass('btn-danger').addClass('btn-success').html('Start');
+    };
+
+    Pomodoro.prototype.updateTimer = function() {
+      var minutes, seconds, spent_time;
+      spent_time = Date.now() - pomodoro.current_task.start_time;
+      minutes = Math.floor(spent_time / 60000);
+      if (minutes < 10) {
+        minutes = '0' + minutes;
+      }
+      seconds = ((spent_time % 60000) / 1000).toFixed(0);
+      if (seconds < 10) {
+        seconds = '0' + seconds;
+      }
+      return $('#timer').html(minutes + ":" + seconds);
+    };
+
+    Pomodoro.prototype.enableFirebaseEvents = function() {
       return this.tasks_index.on('value', function(snapshot) {
-        var key, li, obj, tasks, _i, _len, _ref, _results;
-        tasks = snapshot.val();
+        var key, tasks, _i, _len, _ref, _results;
         $('#tasks').html('');
+        tasks = snapshot.val();
         _ref = Object.keys(tasks);
         _results = [];
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           key = _ref[_i];
-          li = $('<li>').addClass('list-group-item');
-          obj = tasks[key];
-          li.append(obj.title);
-          _results.push($('#tasks').append(li));
+          _results.push(new Task(tasks[key]).render());
         }
         return _results;
       }, function(errorObject) {
@@ -55,10 +94,23 @@
 
     Task.prototype.end_time = null;
 
-    function Task(title) {
-      this.title = title;
-      this.id = generateId();
+    function Task(obj) {
+      this.obj = obj;
+      _.extend(this, obj);
+      if (!this.id) {
+        this.id = generateId();
+      }
     }
+
+    Task.prototype.render = function() {
+      var btn, li;
+      li = $('<li>').addClass('list-group-item');
+      btn = $('<a>').addClass('btn btn-xs btn-danger pull-right');
+      btn.append($('<i>').addClass('fa fa-times'));
+      btn.append('&nbsp;Delete');
+      li.append(btn).append(this.title);
+      return $('#tasks').append(li);
+    };
 
     generateId = function() {
       var chars, result, today;
@@ -74,17 +126,8 @@
   })();
 
   $(function() {
-    var pomodoro;
-    pomodoro = new Pomodoro;
-    return $('#startstop').on('click', function(e) {
-      var task;
-      if ($('#task-title').val() !== '') {
-        task = new Task($('#task-title').val());
-        return pomodoro.startTask(task);
-      } else {
-        return alert('Please, add a title for this task');
-      }
-    });
+    window.pomodoro = new Pomodoro;
+    return $('#startstop').on('click', $.proxy(pomodoro.startStop, pomodoro));
   });
 
 }).call(this);

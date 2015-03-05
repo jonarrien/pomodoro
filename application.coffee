@@ -1,4 +1,6 @@
 class Pomodoro
+  current_task: null
+
   constructor: () ->
     console.log(':::::::::::::::::::::::::::::::::::::')
     console.log(':: Starting pomodoro app');
@@ -6,26 +8,51 @@ class Pomodoro
 
     @fbase = new Firebase("https://brilliant-heat-2062.firebaseio.com/")
     @tasks_index = @fbase.child('tasks')
-    do @enableEvents
+    do @enableFirebaseEvents
 
-  startTask: (task) ->
-    console.log(':: Task started')
-    task.start_time = Date.now()
+  startStop: () ->
+    if @current_task
+      do @stopCurrentTask
+      @current_task = null
+    else
+      if $('#task-title').val() != ''
+        @current_task = new Task
+          title: $('#task-title').val()
+        @startTask(@current_task)
+      else
+        alert 'Please, add a title for this task'
 
+  startTask: (@current_task) ->
+    @current_task.start_time = Date.now()
     @tasks_index.push
-      id: task.id
-      title: task.title
-      date: task.start_time
+      id: @current_task.id
+      title: @current_task.title
+      date: @current_task.start_time
 
-  enableEvents: ->
+    setInterval @updateTimer, 1000
+    $('.pomodoro-app .panel-heading').show()
+    $('.pomodoro-app .panel-body input').attr('disabled', true)
+    $('#startstop').addClass('btn-danger').removeClass('btn-success').html('Stop')
+
+  stopCurrentTask: () ->
+    $('.pomodoro-app .panel-heading').hide()
+    $('.pomodoro-app .panel-body input').attr('disabled', false).val('')
+    $('#startstop').removeClass('btn-danger').addClass('btn-success').html('Start')
+
+  updateTimer: () ->
+    spent_time = Date.now() - pomodoro.current_task.start_time
+    minutes = Math.floor(spent_time / 60000)
+    minutes = '0'+minutes if minutes < 10
+    seconds = ((spent_time % 60000) / 1000).toFixed(0)
+    seconds = '0'+seconds if seconds < 10
+    $('#timer').html minutes+":"+seconds
+
+  enableFirebaseEvents: ->
     @tasks_index.on 'value', (snapshot) ->
-      tasks = snapshot.val()
       $('#tasks').html('')
+      tasks = snapshot.val()
       for key in Object.keys(tasks)
-        li = $('<li>').addClass('list-group-item')
-        obj = tasks[key]
-        li.append obj.title
-        $('#tasks').append(li)
+        new Task(tasks[key]).render()
     , (errorObject) ->
       console.log("The read failed: " + errorObject.code);
 
@@ -34,8 +61,17 @@ class Task
   start_time: null
   end_time: null
 
-  constructor: (@title) ->
-    @id = do generateId
+  constructor: (@obj) ->
+    _.extend @, obj
+    @id = do generateId unless @id
+
+  render: () ->
+    li = $('<li>').addClass('list-group-item')
+    btn = $('<a>').addClass('btn btn-xs btn-danger pull-right')
+    btn.append $('<i>').addClass('fa fa-times')
+    btn.append '&nbsp;Delete'
+    li.append(btn).append(@title)
+    $('#tasks').append(li)
 
   generateId = ->
     chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
@@ -46,11 +82,6 @@ class Task
 
 $ ->
 
-  pomodoro = new Pomodoro
+  window.pomodoro = new Pomodoro
+  $('#startstop').on 'click', $.proxy(pomodoro.startStop, pomodoro)
 
-  $('#startstop').on 'click', (e) ->
-    if $('#task-title').val() != ''
-      task = new Task $('#task-title').val()
-      pomodoro.startTask(task)
-    else
-      alert 'Please, add a title for this task'
