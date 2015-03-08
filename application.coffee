@@ -1,60 +1,91 @@
 class Pomodoro
   current_task: null
+  timer: null
 
   constructor: () ->
-    console.log(':::::::::::::::::::::::::::::::::::::')
-    console.log(':: Starting pomodoro app');
-    console.log(':::::::::::::::::::::::::::::::::::::')
-
     @fbase = new Firebase("https://brilliant-heat-2062.firebaseio.com/")
     @tasks_index = @fbase.child('tasks')
-    do @enableFirebaseEvents
+    do @enableEvents
 
   startStop: () ->
     if @current_task
       do @stopCurrentTask
-      @current_task = null
     else
       if $('#task-title').val() != ''
-        @current_task = new Task
-          title: $('#task-title').val()
+        @current_task = new Task({})
+        @current_task.title = $('#task-title').val()
         @startTask(@current_task)
       else
         alert 'Please, add a title for this task'
 
   startTask: (@current_task) ->
     @current_task.start_time = Date.now()
-    @tasks_index.push
+    @fbase.child('current_task').set @current_task
+
+  stopCurrentTask: ->
+    @tasks_index.child(@current_task.id).set
       id: @current_task.id
       title: @current_task.title
-      date: @current_task.start_time
+      start_time: @current_task.start_time
+      end_time: Date.now()
+    do @fbase.child('current_task').remove
+    @current_task = null
 
-    setInterval @updateTimer, 1000
-    $('.pomodoro-app .panel-heading').show()
-    $('.pomodoro-app .panel-body input').attr('disabled', true)
-    $('#startstop').addClass('btn-danger').removeClass('btn-success').html('Stop')
+  updateTimer: ->
+    if window.pomodoro.current_task
+      spent_time = Date.now() - window.pomodoro.current_task.start_time
+      $('#timer').html convertMiliToHuman spent_time
+      if spent_time >= (25 * 60 * 1000)
+        clearInterval(window.pomodoro.timer)
+        do window.pomodoro.stopCurrentTask
+    else
+      clearInterval(window.pomodoro.timer)
 
-  stopCurrentTask: () ->
-    $('.pomodoro-app .panel-heading').hide()
-    $('.pomodoro-app .panel-body input').attr('disabled', false).val('')
-    $('#startstop').removeClass('btn-danger').addClass('btn-success').html('Start')
+  renderTasks: (snapshot) ->
+    $('#tasks').html('')
+    tasks = snapshot.val()
+    for key in Object.keys(tasks)
+      new Task(tasks[key]).render()
 
-  updateTimer: () ->
-    spent_time = Date.now() - pomodoro.current_task.start_time
-    minutes = Math.floor(spent_time / 60000)
-    minutes = '0'+minutes if minutes < 10
-    seconds = ((spent_time % 60000) / 1000).toFixed(0)
-    seconds = '0'+seconds if seconds < 10
-    $('#timer').html minutes+":"+seconds
+  displayCurrentTask: (snapshot) ->
+    @current_task = snapshot.val()
+    if @current_task
+      do @updateTimer
+      @timer = setInterval @updateTimer, 1000
+      $('.pomodoro-app .panel-heading').show()
+      $('.pomodoro-app #task-title').attr('disabled', true)
+      $('#startstop').addClass('btn-danger').removeClass('btn-success').html('Stop')
+      $('#task-title').val @current_task.title
+    else
+      $('#timer').html 'Pomodoro Finished!'
+      $('.pomodoro-app #task-title').attr('disabled', false).val('')
+      $('#startstop').removeClass('btn-danger').addClass('btn-success').html('Start')
+      setTimeout ()->
+        $('#timer').html '00:00'
+        $('.pomodoro-app .panel-heading').fadeOut(900)
+      , 2000
 
-  enableFirebaseEvents: ->
-    @tasks_index.on 'value', (snapshot) ->
-      $('#tasks').html('')
-      tasks = snapshot.val()
-      for key in Object.keys(tasks)
-        new Task(tasks[key]).render()
+  enableEvents: ->
+    @fbase.child('current_task').on 'value', $.proxy(@displayCurrentTask, @)
+    @tasks_index.on 'value', $.proxy(@renderTasks, @)
     , (errorObject) ->
       console.log("The read failed: " + errorObject.code);
+    $('.pomodoro-app').on 'click', 'li a.btn-delete', $.proxy(@deleteTask, @)
+    $('.pomodoro-app').on 'click', 'li a.btn-play', $.proxy(@repeatTask, @)
+
+  deleteTask: (e) ->
+    id = $(e.target).parents('li').attr('id')
+    do @tasks_index.child(id).remove
+
+  repeatTask: (e) ->
+    if @current_task
+      alert 'You can not resume until you finish the current pomodoro'
+    else
+      @current_task = new Task
+        title: $(e.target).parents('li').find('span').html()
+        start_time: Date.now()
+      delete @current_task.obj
+      @fbase.child('current_task').set @current_task
 
 class Task
   id: null
@@ -65,12 +96,24 @@ class Task
     _.extend @, obj
     @id = do generateId unless @id
 
+  spent_time: ->
+    if @end_time then convertMiliToHuman(@end_time - @start_time) else '>>>>'
+
   render: () ->
-    li = $('<li>').addClass('list-group-item')
-    btn = $('<a>').addClass('btn btn-xs btn-danger pull-right')
-    btn.append $('<i>').addClass('fa fa-times')
-    btn.append '&nbsp;Delete'
-    li.append(btn).append(@title)
+    li = $('<li>').addClass('list-group-item').attr 'id', @id
+    li.data('start_time', @start_time)
+
+    btn_group = $('<div>').addClass('btn-group pull-right')
+    btn_del = $('<a>').addClass('btn btn-xs btn-danger btn-delete')
+    btn_del.append($('<i>').addClass('fa fa-times')).append '&nbsp;Delete'
+    btn_con = $('<a>').addClass('btn btn-xs btn-default btn-play')
+    btn_con.append($('<i>').addClass('fa fa-chevron-right')).append '&nbsp;Repeat'
+    li.append btn_group.append(btn_con).append(btn_del)
+
+    li.append $('<strong>').addClass('text-info').append @spent_time()+'&nbsp;'
+    li.append $('<span>').append @title
+
+    # li.append(btn_group).append(@spent_time()+'&nbsp;').append(@title)
     $('#tasks').append(li)
 
   generateId = ->
@@ -79,6 +122,14 @@ class Task
     result = today.valueOf().toString 16
     result += chars.substr Math.floor(Math.random() * chars.length), 1
     result += chars.substr Math.floor(Math.random() * chars.length), 1
+
+convertMiliToHuman = (milisecs) ->
+  minutes = Math.floor(milisecs / 60000)
+  minutes = '0'+minutes if minutes < 10
+  seconds = ((milisecs % 60000) / 1000).toFixed(0)
+  seconds = '0'+seconds if seconds < 10
+  minutes+":"+seconds
+
 
 $ ->
 

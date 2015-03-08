@@ -3,6 +3,8 @@ body {
 
 .pomodoro-app {
   padding: 0 10px; }
+  .pomodoro-app .panel {
+    margin-bottom: 5px; }
   .pomodoro-app .panel-heading {
     background: #598800; }
     .pomodoro-app .panel-heading h1 {
